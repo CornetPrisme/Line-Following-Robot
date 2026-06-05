@@ -24,5 +24,42 @@ class CanManager {
     return;
   }
 
+  bool send(CanFrame frame) {
+    twai_message_t message;
+    message.identifier = frame.id;
+    message.data_length_code = frame.length;
+    message.rtr = frame.is_request;
+    memcpy(message.data, frame.data, frame.length);
+    return (twai_transmit(&message, pdMS_TO_TICKS(100)) == ESP_OK);
+  }
+
+  bool receive(CanFrame& frame) {
+    twai_message_t message;
+    if (twai_receive(&message, 0) == ESP_OK) {
+      frame.id = message.identifier;
+      frame.length = message.data_length_code;
+      frame.is_request = message.rtr;
+      memcpy(frame.data, message.data, message.data_length_code);
+      return true; 
+    }
+    return false; 
+  }
   
+  template <typename T>
+  bool sendData(uint32_t id, T data) {
+    CanFrame frame;
+    frame.id = id;
+    frame.length = sizeof(T);
+    frame.is_rtr = false;
+    memcpy(frame.data, &data, frame.length);
+    return this->send(frame);
+  }
+
+  template <typename T>
+  T extractData(CanFrame frame) {
+    T data; 
+    memcpy(&data, frame.data, frame.length); 
+    return data;
+  }
+  };
 };
