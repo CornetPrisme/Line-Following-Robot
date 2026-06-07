@@ -23,7 +23,7 @@ class CanManager {
     Serial.println("Failed to install driver");
     return;
   }
-
+  }
   bool send(CanFrame frame) {
     twai_message_t message;
     message.identifier = frame.id;
@@ -47,6 +47,10 @@ class CanManager {
   
   template <typename T>
   bool sendData(uint32_t id, T data) {
+    if (sizeof(T) > 8){
+      Serial.println("Packet size is over 8 bytes")
+      return false; 
+    }
     CanFrame frame;
     frame.id = id;
     frame.length = sizeof(T);
@@ -62,4 +66,3 @@ class CanManager {
     return data;
   }
   };
-};
