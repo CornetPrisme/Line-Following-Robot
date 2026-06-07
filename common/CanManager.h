@@ -13,15 +13,21 @@ class CanManager {
   public:
 
   bool begin(gpio_num_t rxpin, gpio_num_t txpin) {
-    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(tx_pin, rx_pin, TWAI_MODE_NORMAL);
+    twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(txpin, rxpin, TWAI_MODE_NORMAL);
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();  
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
     Serial.println("Driver installed");
+    if (twai_start() == ESP_OK) {
+        return true;
+      } else {
+        Serial.println("Failed to start driver");
+        return false;
+      }
   } else {
     Serial.println("Failed to install driver");
-    return;
+    return false;
   }
   }
   bool send(CanFrame frame) {
@@ -48,13 +54,13 @@ class CanManager {
   template <typename T>
   bool sendData(uint32_t id, T data) {
     if (sizeof(T) > 8){
-      Serial.println("Packet size is over 8 bytes")
+      Serial.println("Packet size is over 8 bytes");
       return false; 
     }
     CanFrame frame;
     frame.id = id;
     frame.length = sizeof(T);
-    frame.is_rtr = false;
+    frame.is_request = false;
     memcpy(frame.data, &data, frame.length);
     return this->send(frame);
   }
