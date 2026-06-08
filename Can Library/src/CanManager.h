@@ -8,7 +8,7 @@
 #include "driver/twai.h"
 #endif
 
-struct CanFrame {
+struct can_frame {
   uint32_t id = 0;       
   uint8_t data[8] = {0}; 
   uint8_t length = 0;    
@@ -27,33 +27,52 @@ class CanManager {
   public:
 
   #ifdef ARDUINO_ARCH_ESP32
-  bool begin(gpio_num_t rxpin, gpio_num_t txpin) {
+  bool init(gpio_num_t rxpin, gpio_num_t txpin) {
     twai_general_config_t g_config = TWAI_GENERAL_CONFIG_DEFAULT(txpin, rxpin, TWAI_MODE_NORMAL);
     twai_timing_config_t t_config = TWAI_TIMING_CONFIG_500KBITS();  
     twai_filter_config_t f_config = TWAI_FILTER_CONFIG_ACCEPT_ALL();
 
     if (twai_driver_install(&g_config, &t_config, &f_config) == ESP_OK) {
-    Serial.println("Driver installed");
+        Serial.println("Driver installed");
+    } else {
+        Serial.println("Failed to install driver");
+        return false;
+    }
+
+    // Start TWAI driver
     if (twai_start() == ESP_OK) {
-        return true;
-      } else {
+        Serial.println("Driver started");
+    } else {
         Serial.println("Failed to start driver");
         return false;
-      }
-  } else {
-    Serial.println("Failed to install driver");
-    return false;
-  }
-  }
-  void send_can(CanFrame frame) {
+    }
+    return true;
+  };
+
+  void send_can(can_frame frame) {
       twai_message_t message;
       message.identifier = frame.id;
-      message.data_length_code = frame.len;
-      memcpy(&message.data, frame.buf, frame.len);
+      message.data_length_code = frame.length;
+      memcpy(&message.data, frame.data, frame.length);
       if (twai_transmit(&message, 0) == ESP_OK) {
+          printf("Message queued for transmission\n");
       } else {
           printf("Failed to queue message for transmission\n");
       }
+  };
+
+
+  bool receive_can(can_frame* frame) {
+    twai_message_t message;
+    if (twai_receive(&message, 0) == ESP_ERR_TIMEOUT) {
+        // Serial.println("no can frames");
+        return false;
+    }
+    frame->rtr = message.rtr;
+    frame->length = message.data_length_code;
+    frame->id = message.identifier;
+    memcpy(frame->data, &message.data, message.data_length_code);
+    return true;
   };
   #endif
 
@@ -67,14 +86,14 @@ class CanManager {
   void send_can(t_can_frame frame) {
     CAN_message_t tx_msg;
     tx_msg.id = frame.id;
-    tx_msg.len = frame.len;
+    tx_msg.len = frame.length;
     tx_msg.flags.remote = frame.rtr;
-    memcpy(&tx_msg.buf, frame.buf, frame.len);
+    memcpy(&tx_msg.buf, frame.data, frame.length);
     if (m_stm32CAN.write(tx_msg)) {
     };
   };
 
-  bool receive_can(t_can_frame* frame) {
+  bool receive(t_can_frame* frame) {
     CAN_message_t rx_msg;
     if (!m_stm32CAN.read(rx_msg)){
         return false;
@@ -85,42 +104,17 @@ class CanManager {
     frame->rtr = rx_msg.flags.remote;
     memcpy(frame->buf, &rx_msg.buf, rx_msg.len);
     return true;
-  }
-#endif
-
-
-  template <typename T>
-  bool send_data(T data) {
-    if (sizeof(T) > 8){
-      Serial.println("Packet size is over 8 bytes");
-      return false; 
-    }
-    CanFrame frame;
-    frame.id = T::ID;
-    frame.length = sizeof(T);
-    frame.rtr = false;
-    memcpy(frame.data, &data, frame.length);
-    return this->send_can(frame);
-  }
-
-  bool receive(CanFrame& frame) {
-    twai_message_t message;
-    if (twai_receive(&message, 0) == ESP_OK) {
-      frame.id = message.identifier;
-      frame.length = message.data_length_code;
-      frame.rtr = message.rtr;
-      memcpy(frame.data, message.data, message.data_length_code);
-      return true; 
-    }
-    return false; 
-  }
-  
-  template <typename T>
-  T extractData(CanFrame frame) {
-    T data; 
-    memcpy(&data, frame.data, frame.length); 
-    return data;
-  }
   };
 
-  
+#endif
+
+  template<typename T>
+  void send(T data) {
+    can_frame frame {};
+    frame.id = T::ID;
+    frame.length = sizeof(data);
+    memcpy(&frame.data, &data, frame.length);
+    send_can(frame);
+  }
+};
+
