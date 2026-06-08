@@ -9,7 +9,8 @@ CAN_STRUCT(Data, 100,
 Data msg;
 
 void setup() {
-    can.begin(GPIO_NUM_4, GPIO_NUM_5);
+    Serial.begin(115200);
+    can.begin(GPIO_NUM_11, GPIO_NUM_12);
     msg.temp = 0;
 }
 void loop() {

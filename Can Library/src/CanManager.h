@@ -45,14 +45,16 @@ class CanManager {
     return false;
   }
   }
-  bool send(CanFrame frame) {
-    twai_message_t message;
-    message.identifier = frame.id;
-    message.data_length_code = frame.length;
-    message.rtr = frame.rtr;
-    memcpy(message.data, frame.data, frame.length);
-    return (twai_transmit(&message, pdMS_TO_TICKS(100)) == ESP_OK);
-  }
+  void send_can(CanFrame frame) {
+      twai_message_t message;
+      message.identifier = frame.id;
+      message.data_length_code = frame.len;
+      memcpy(&message.data, frame.buf, frame.len);
+      if (twai_transmit(&message, 0) == ESP_OK) {
+      } else {
+          printf("Failed to queue message for transmission\n");
+      }
+  };
   #endif
 
   #ifdef ARDUINO_ARCH_STM32
@@ -98,7 +100,7 @@ class CanManager {
     frame.length = sizeof(T);
     frame.rtr = false;
     memcpy(frame.data, &data, frame.length);
-    return this->send(frame);
+    return this->send_can(frame);
   }
 
   bool receive(CanFrame& frame) {
@@ -120,3 +122,5 @@ class CanManager {
     return data;
   }
   };
+
+  
