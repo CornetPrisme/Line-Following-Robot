@@ -1,18 +1,22 @@
-#include <Arduino.h>
+#include "CanManager.h"
 
-// put function declarations here:
-int myFunction(int, int);
+CanManager can;
+
+CAN_STRUCT(Data, 100, 
+  int32_t temp;
+);
+
+Data msg;
 
 void setup() {
-  // put your setup code here, to run once:
-  int result = myFunction(2, 3);
+    can.begin(GPIO_NUM_4, GPIO_NUM_5);
+    msg.temp = 0;
 }
-
 void loop() {
-  // put your main code here, to run repeatedly:
-}
+    if (can.send_data(msg)) {
+        Serial.print("message envoyé !");
+    }
 
-// put function definitions here:
-int myFunction(int x, int y) {
-  return x + y;
+    msg.temp += 1; 
+    delay(1000);
 }

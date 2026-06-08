@@ -12,8 +12,16 @@ struct CanFrame {
   uint32_t id = 0;       
   uint8_t data[8] = {0}; 
   uint8_t length = 0;    
-  bool is_request = false;   
+  bool rtr = false;   
 };
+
+#define CAN_STRUCT(struct_name, can_id, ...) \
+  struct __attribute__((packed)) struct_name { \
+    static constexpr uint32_t ID = can_id; \
+    __VA_ARGS__ \
+  }; \
+  static_assert(sizeof(struct_name) <= 8, #struct_name " exceeds CAN frame size (8 bytes)"); \
+  static_assert(std::is_trivially_copyable<struct_name>::value, #struct_name " must be trivially copyable") \
 
 class CanManager {
   public:
@@ -41,24 +49,54 @@ class CanManager {
     twai_message_t message;
     message.identifier = frame.id;
     message.data_length_code = frame.length;
-    message.rtr = frame.is_request;
+    message.rtr = frame.rtr;
     memcpy(message.data, frame.data, frame.length);
     return (twai_transmit(&message, pdMS_TO_TICKS(100)) == ESP_OK);
   }
   #endif
 
+  #ifdef ARDUINO_ARCH_STM32
+  CanController(): m_stm32CAN(CAN1, DEF) {};
+  void init() {
+    m_stm32CAN.begin();
+    m_stm32CAN.setBaudRate(500000);
+  };
+
+  void send_can(t_can_frame frame) {
+    CAN_message_t tx_msg;
+    tx_msg.id = frame.id;
+    tx_msg.len = frame.len;
+    tx_msg.flags.remote = frame.rtr;
+    memcpy(&tx_msg.buf, frame.buf, frame.len);
+    if (m_stm32CAN.write(tx_msg)) {
+    };
+  };
+
+  bool receive_can(t_can_frame* frame) {
+    CAN_message_t rx_msg;
+    if (!m_stm32CAN.read(rx_msg)){
+        return false;
+    }
+
+    frame->id = rx_msg.id;
+    frame->len = rx_msg.len;
+    frame->rtr = rx_msg.flags.remote;
+    memcpy(frame->buf, &rx_msg.buf, rx_msg.len);
+    return true;
+  }
+#endif
 
 
   template <typename T>
-  bool send_data(uint32_t id, T data) {
+  bool send_data(T data) {
     if (sizeof(T) > 8){
       Serial.println("Packet size is over 8 bytes");
       return false; 
     }
     CanFrame frame;
-    frame.id = id;
+    frame.id = T::ID;
     frame.length = sizeof(T);
-    frame.is_request = false;
+    frame.rtr = false;
     memcpy(frame.data, &data, frame.length);
     return this->send(frame);
   }
@@ -68,7 +106,7 @@ class CanManager {
     if (twai_receive(&message, 0) == ESP_OK) {
       frame.id = message.identifier;
       frame.length = message.data_length_code;
-      frame.is_request = message.rtr;
+      frame.rtr = message.rtr;
       memcpy(frame.data, message.data, message.data_length_code);
       return true; 
     }
