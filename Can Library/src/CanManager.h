@@ -15,6 +15,21 @@ struct can_frame_t {
   bool rtr = false;   
 };
 
+constexpr uint32_t DUPLICATE_IDS[] = { 
+    100,
+    101,
+    102,
+    103    
+};
+constexpr bool is_duplicate_id(uint32_t id) {
+    for (uint32_t duplicate_id : DUPLICATE_IDS) {
+        if (duplicate_id == id) {
+            return true;
+        }
+    }
+    return false;
+}
+
 #define CAN_STRUCT(struct_name, can_id, ...) \
   struct __attribute__((packed)) struct_name { \
     static constexpr uint32_t ID = can_id; \
@@ -22,6 +37,8 @@ struct can_frame_t {
   }; \
   static_assert(sizeof(struct_name) <= 8, #struct_name " exceeds CAN frame size (8 bytes)"); \
   static_assert(std::is_trivially_copyable<struct_name>::value, #struct_name " must be trivially copyable"); \
+  static_assert(!is_duplicate_id(can_id), #can_id " is already in use"); \
+
 
 class CanManager {
   public:
