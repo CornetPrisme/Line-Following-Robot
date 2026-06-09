@@ -8,20 +8,13 @@ CAN_STRUCT(TEMPERATURE, 106,
 
 TEMPERATURE msg;
 
-void setup() {
-    Serial.begin(115200);
-    can.init(GPIO_NUM_11, GPIO_NUM_12);
-    //can.init();
-    msg.temp = 0;
-}
-void loop() {
-    /*
+void envoie(can_frame_t frameRecue) {
     can.send(msg);
     msg.temp += 1; 
     delay(1000);
-    */
-    
-    can_frame_t frameRecue;
+}
+
+void reception(can_frame_t frameRecue) {
     while (can.receive_can(&frameRecue)) {
         
         if (frameRecue.id == TEMPERATURE::ID) {
@@ -32,4 +25,18 @@ void loop() {
             Serial.println(msg_recu.temp);
         }
     }
+}
+
+
+
+void setup() {
+    Serial.begin(115200);
+    can.init(GPIO_NUM_11, GPIO_NUM_12);
+    //can.init();
+    msg.temp = 0;
+}
+void loop() {
+    can_frame_t frameRecue;
+    //envoie(frameRecue);
+    reception(frameRecue);
 }
