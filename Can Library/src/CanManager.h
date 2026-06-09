@@ -8,7 +8,7 @@
 #include "driver/twai.h"
 #endif
 
-struct can_frame {
+struct can_frame_t {
   uint32_t id = 0;       
   uint8_t data[8] = {0}; 
   uint8_t length = 0;    
@@ -21,7 +21,7 @@ struct can_frame {
     __VA_ARGS__ \
   }; \
   static_assert(sizeof(struct_name) <= 8, #struct_name " exceeds CAN frame size (8 bytes)"); \
-  static_assert(std::is_trivially_copyable<struct_name>::value, #struct_name " must be trivially copyable") \
+  static_assert(std::is_trivially_copyable<struct_name>::value, #struct_name " must be trivially copyable"); \
 
 class CanManager {
   public:
@@ -49,7 +49,7 @@ class CanManager {
     return true;
   };
 
-  void send_can(can_frame frame) {
+  void send_can(can_frame_t frame) {
       twai_message_t message;
       message.identifier = frame.id;
       message.data_length_code = frame.length;
@@ -62,7 +62,7 @@ class CanManager {
   };
 
 
-  bool receive_can(can_frame* frame) {
+  bool receive_can(can_frame_t* frame) {
     twai_message_t message;
     if (twai_receive(&message, 0) == ESP_ERR_TIMEOUT) {
         // Serial.println("no can frames");
@@ -77,13 +77,13 @@ class CanManager {
   #endif
 
   #ifdef ARDUINO_ARCH_STM32
-  CanController(): m_stm32CAN(CAN1, DEF) {};
+  CanManager(): m_stm32CAN(CAN1, DEF) {};
   void init() {
     m_stm32CAN.begin();
     m_stm32CAN.setBaudRate(500000);
   };
 
-  void send_can(t_can_frame frame) {
+  void send_can(can_frame_t frame) {
     CAN_message_t tx_msg;
     tx_msg.id = frame.id;
     tx_msg.len = frame.length;
@@ -93,16 +93,16 @@ class CanManager {
     };
   };
 
-  bool receive(t_can_frame* frame) {
+  bool receive_can(can_frame_t* frame) {
     CAN_message_t rx_msg;
     if (!m_stm32CAN.read(rx_msg)){
         return false;
     }
 
     frame->id = rx_msg.id;
-    frame->len = rx_msg.len;
+    frame->length = rx_msg.len;
     frame->rtr = rx_msg.flags.remote;
-    memcpy(frame->buf, &rx_msg.buf, rx_msg.len);
+    memcpy(frame->data, &rx_msg.buf, rx_msg.len);
     return true;
   };
 
@@ -110,11 +110,15 @@ class CanManager {
 
   template<typename T>
   void send(T data) {
-    can_frame frame {};
+    can_frame_t frame {};
     frame.id = T::ID;
     frame.length = sizeof(data);
     memcpy(&frame.data, &data, frame.length);
     send_can(frame);
   }
-};
 
+  private:
+  #ifdef ARDUINO_ARCH_STM32
+    STM32_CAN m_stm32CAN;
+  #endif
+};
