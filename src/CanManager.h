@@ -8,6 +8,8 @@
 #include "driver/twai.h"
 #endif
 
+#define CALLBACKS_NUMBER 10 
+
 struct can_frame_t {
   uint32_t id = 0;       
   uint8_t data[8] = {0}; 
@@ -121,7 +123,7 @@ class CanManager {
     frame->rtr = rx_msg.flags.remote;
     memcpy(frame->data, &rx_msg.buf, rx_msg.len);
     return true;
-  };
+  };is already in use
 
 #endif
 
@@ -137,7 +139,7 @@ class CanManager {
   typedef void (*CanCallback)(can_frame_t);
 
   bool onReceive(uint32_t id, CanCallback funcToCall) {
-      if (_callback_count < 10) {
+      if (_callback_count < CALLBACKS_NUMBER) {
           _callbacks[_callback_count].id = id;
           _callbacks[_callback_count].function = funcToCall;
           _callback_count++;
@@ -164,7 +166,7 @@ class CanManager {
     CanCallback function;
   };
 
-  CallbackEntry _callbacks[10];
+  CallbackEntry _callbacks[CALLBACKS_NUMBER];
   uint8_t _callback_count = 0;
 
   #ifdef ARDUINO_ARCH_STM32
