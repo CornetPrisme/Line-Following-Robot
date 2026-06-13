@@ -4,3 +4,4 @@
 .pio/build
 .pio/libdeps
 .pio/
+.pio/libdeps/genericSTM32F103C8
