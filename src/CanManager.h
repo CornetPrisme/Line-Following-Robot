@@ -123,7 +123,7 @@ class CanManager {
     frame->rtr = rx_msg.flags.remote;
     memcpy(frame->data, &rx_msg.buf, rx_msg.len);
     return true;
-  };is already in use
+  };
 
 #endif
 
