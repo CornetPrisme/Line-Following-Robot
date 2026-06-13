@@ -134,7 +134,39 @@ class CanManager {
     send_can(frame);
   }
 
+  typedef void (*CanCallback)(can_frame_t);
+
+  bool onReceive(uint32_t id, CanCallback funcToCall) {
+      if (_callback_count < 10) {
+          _callbacks[_callback_count].id = id;
+          _callbacks[_callback_count].function = funcToCall;
+          _callback_count++;
+          return true;
+      }
+      Serial.println("Trop de callbacks enregistrés (Max 10)"); // faire vérification automatique
+      return false;
+  }
+
+  void update() {
+      can_frame_t frame;
+      while (this->receive_can(&frame)) {
+          for (uint8_t i = 0; i < _callback_count; i++) {
+              if (_callbacks[i].id == frame.id) {
+                  _callbacks[i].function(frame);
+              }
+          }
+      }
+    }
+
   private:
+  struct CallbackEntry {
+    uint32_t id = 0;
+    CanCallback function;
+  };
+
+  CallbackEntry _callbacks[10];
+  uint8_t _callback_count = 0;
+
   #ifdef ARDUINO_ARCH_STM32
     STM32_CAN m_stm32CAN;
   #endif
